@@ -9,7 +9,7 @@ Python vk.com api wrapper
 2. Create instance of VkApi class using one of following ways:
 ```python
 token = '533bacf01e11f55b536a565b57531ac114461ae8736d6506a3' # Access token. See http://vk.com/dev/auth_mobile for more info
-permissions = 'video,messages'
+permissions = 'status,wall'
 app_id = 3882511
 api = VkApi(token, limit=5) # Default way. Limit is api calls per second rate
 api = VkApi.from_redirect_uri(uri) # It will parse redirect url and create instance of class
@@ -27,3 +27,4 @@ api.execute('wall.repost', ['object'], object=ids) # repost all
 method just calls your method with all key word parameters using https
 load should be used if real number of object more than could be got per 1 request
 execute will apply your method to every object marked as list_var. Second parameter is a list of vars that should interpreted as list of params. 
+## List of all methods can be found at http://vk.com/dev/methods
