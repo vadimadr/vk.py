@@ -1,10 +1,10 @@
-# PyVk
+# vk.py
 Python vk.com api wrapper
 
 ##Usage
 ####Import vkApi to your project:
 ```python
- from vk_api import VkApi
+ from vk import VkApi
  ```
 ####Create instance of VkApi class using one of following ways:
 ```python
