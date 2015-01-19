@@ -27,4 +27,4 @@ api.execute('wall.repost', ['object'], object=ids) # repost all
 method just calls your method with all key word parameters using https
 load should be used if real number of object more than could be got per 1 request
 execute will apply your method to every object marked as list_var. Second parameter is a list of vars that should interpreted as list of params. 
-## List of all methods can be found at http://vk.com/dev/methods
+##List of all methods can be found at http://vk.com/dev/methods
