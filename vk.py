@@ -1,5 +1,6 @@
 from collections import deque
 from datetime import datetime
+from functools import partial
 import json
 import webbrowser
 import re
@@ -30,9 +31,22 @@ class VkApiError(Exception):
         return "%s: %s" % (self.code, self.description)
 
 
+class _ApiProxy(object):
+    __slots__ = ('api', 'category_name')
+
+    def __init__(self, api, category_name):
+        self.api = api
+        self.category_name = category_name
+
+    def __getattribute__(self, name):
+        category = object.__getattribute__(self, 'category_name')
+        if name.startswith('__'): return super().__getattribute__(name)
+        return partial(object.__getattribute__(self, 'api').method, '%s.%s' % (category, name))
+
+
 class VkApi:
     """
-    Оболочка для api vk.com.
+    Simple vk.com aka vkontake open api wrapper
     """
 
     def __init__(self, key, limit=5):
@@ -44,6 +58,11 @@ class VkApi:
     def method(self, method, spam_if_fail=True, **args):
         payload = {'access_token': self.key}
         payload.update(args)
+
+        for k, v in payload.items():
+            if type(v) in (list, tuple):
+                payload[k] = ','.join(map(str, v))
+
         request_url = ('https://api.vk.com/method/%s?%s' % (method, urlencode(payload))).replace('\'', '\"')
 
         if len(self.queries) >= self.limit and (datetime.now() - self.queries[0]).total_seconds() < 1:
@@ -65,7 +84,7 @@ class VkApi:
         else:
             return data['response']
 
-    def execute(self, method, list_vars, calls_per_request=12, **kwargs):
+    def apply(self, method, list_vars, calls_per_request=12, **kwargs):
         if not type(list_vars) is list:
             list_vars = [list_vars]
         list_args = {k: kwargs.pop(k) for k in list_vars}
@@ -95,7 +114,7 @@ class VkApi:
 
     def load(self, method, count, delta, **kwargs):
         idx = list(range(0, count, delta))
-        return self.execute(method, 'offset', offset=idx, count=delta, **kwargs)
+        return self.apply(method, 'offset', offset=idx, count=delta, **kwargs)
 
     @staticmethod
     def get_auth_url(app_id, permissions='', api_version='5.27'):
@@ -129,4 +148,18 @@ class VkApi:
         parsed = pattern.search(uri)
         token = parsed.group(1) if parsed else None
         return cls(token, limit)
+
+    def __getattribute__(self, name):
+        category = (
+            'users', 'likes', 'friends', 'groups', 'photos', 'wall', 'newsfeed', 'notifications', 'audio', 'video',
+            'docs',
+            'places', 'secure', 'storage', 'notes', 'pages', 'stats', 'subscriptions', 'widgets', 'leads', 'messages',
+            'status', 'polls', 'account', 'board', 'fave', 'auth', 'ads', 'orders', 'search', 'apps', 'utils',
+            'database', 'gifts')
+        if name in category:
+            return _ApiProxy(self, name)
+        if name is 'execute':
+            return partial(super().__getattribute__('method'), 'execute')
+        return super().__getattribute__(name)
+
 
