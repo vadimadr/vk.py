@@ -23,7 +23,7 @@ messages = api.load('wall.get', 1000, 100, owner_id=-10639516) # Get last 1000 p
 ids = map(lambda x: 'wall-10639516_%d' % x['id'], messages) # convert to post id string
 api.apply('wall.repost', ['object'], object=ids) # repost all
 ```
-####about differences between apply, load and explicit method calling:
+####About differences between apply, load and explicit method calling:
 * Explicit method calling (like api.users.get) just calls your method with all keyword parameters using https
 * load should be used if real number of object more than could be got per 1 request
 * apply calls your method with each object passed in a sequence. Second positional argument is a list of keyword parameters that should be interpreted as a sequence. 
