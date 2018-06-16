@@ -6,9 +6,11 @@ import webbrowser
 import re
 import os
 import time
+import logging
 from urllib.parse import urlencode
 import urllib.request as req
 
+logger = logging.getLogger(__name__)
 
 def flatten(it):
     result = []
@@ -49,11 +51,12 @@ class VkApi:
     Simple vk.com aka vkontake open api wrapper
     """
 
-    def __init__(self, key, limit=5):
+    def __init__(self, key, limit=5, v='5.78'):
         self.limit = limit
         self.queries = deque(maxlen=limit)
         self.key = key
         self.count = 0
+        self.api_version = v
 
     def method(self, method, spam_if_fail=True, **args):
         payload = {'access_token': self.key}
@@ -62,6 +65,9 @@ class VkApi:
         for k, v in payload.items():
             if type(v) in (list, tuple):
                 payload[k] = ','.join(map(str, v))
+        
+        if 'v' not in payload:
+            payload['v'] = self.api_version
 
         request_url = ('https://api.vk.com/method/%s?%s' % (method, urlencode(payload))).replace('\'', '\"')
 
@@ -84,7 +90,7 @@ class VkApi:
         else:
             return data['response']
 
-    def apply(self, method, list_vars, calls_per_request=12, **kwargs):
+    def apply(self, method, list_vars, calls_per_request=25, num_per_call=20, **kwargs):
         if not type(list_vars) is list:
             list_vars = [list_vars]
         list_args = {k: kwargs.pop(k) for k in list_vars}
@@ -97,27 +103,26 @@ class VkApi:
 
         i = calls_per_request
         result = []
-
+        total = len(list_args[counter]) * num_per_call
         while list_args[counter]:
-            lvr = ["var _{}={}".format(k, v[:i]) for k, v in list_args.items()]
+            lvr = ["var _{}={}".format(k, v[:calls_per_request]) for k, v in list_args.items()]
             lvars = ';'.join(lvr)
             script = src.format(lvars=lvars, args=args_encoded, method=method, counter=counter)
-            # print(script)
 
             for k in list_args:
-                list_args[k] = list_args[k][i:]
-            i += calls_per_request
+                list_args[k] = list_args[k][calls_per_request:]
             dr = self.method('execute', code=script.replace('\'', '\"'))
             result += flatten(dr)
+            logger.info("loaded: {}/{}".format(total - len(list_args[counter]) * num_per_call, total))
 
         return result
 
     def load(self, method, count, delta, **kwargs):
         idx = list(range(0, count, delta))
-        return self.apply(method, 'offset', offset=idx, count=delta, **kwargs)
+        return self.apply(method, 'offset', offset=idx, count=delta, num_per_call=delta, **kwargs)
 
     @staticmethod
-    def get_auth_url(app_id, permissions='', api_version='5.27'):
+    def get_auth_url(app_id, permissions='', api_version='5.78'):
         payload = {
             'client_id': app_id,
             'scope': permissions,
@@ -129,7 +134,7 @@ class VkApi:
         return 'https://oauth.vk.com/authorize?%s' % urlencode(payload)
 
     @classmethod
-    def browser_auth(cls, app_id, permissions='', api_version='5.27', limit=5):
+    def browser_auth(cls, app_id, permissions='', api_version='5.78', limit=5):
         auth_url = cls.get_auth_url(app_id, permissions, api_version)
         print(u"Пройдите авторизацию и скопируйте url из адресной строки. ")
         old_d = os.dup(1)
